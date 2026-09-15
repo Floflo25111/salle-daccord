@@ -1,12 +1,6 @@
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1"><style>:root{color-scheme:light}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <title>Salle d'Accord</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,600&family=Public+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600;700&display=swap">
-</head>
-<body>
 <style>
   :root{
     --bg:#ECE7D6;
@@ -331,6 +325,35 @@
   .history-icon{width:26px; height:26px; color:var(--accent-strong); flex:none;}
   .history-label{flex:1; font-size:.86rem;}
   .history-date{font-family:var(--font-mono); font-size:.74rem; color:var(--ink-dim); flex:none;}
+
+  /* enchaînements d'accords (vélocité de changement) */
+  .switch-tier{margin-bottom:16px;}
+  .switch-tier:last-child{margin-bottom:0;}
+  .switch-tier-label{font-size:.7rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-dim); margin:0 0 8px;}
+  .switch-chip-row{display:flex; flex-wrap:wrap; gap:8px;}
+  .switch-chip{position:relative; display:inline-flex; align-items:center; font-family:var(--font-body); font-weight:600; font-size:.84rem; padding:9px 14px; border-radius:999px; border:1px solid var(--border); background:var(--surface-2); color:var(--ink); cursor:pointer;}
+  .switch-chip:hover{border-color:var(--accent);}
+  .switch-chip.is-a{background:var(--accent-soft); border-color:var(--accent); color:var(--accent-strong);}
+  .switch-chip.is-b{background:var(--success-bg); border-color:var(--success); color:var(--success);}
+  .chip-pick-num{display:inline-flex; align-items:center; justify-content:center; width:16px; height:16px; border-radius:50%; margin-right:6px; flex:none; font-size:.68rem;}
+  .switch-chip.is-a .chip-pick-num{background:var(--accent); color:var(--accent-ink);}
+  .switch-chip.is-b .chip-pick-num{background:var(--success); color:var(--accent-ink);}
+  .switch-stage{align-items:center; text-align:center;}
+  .switch-timer{font-family:var(--font-mono); font-size:2.4rem; font-weight:700;}
+  .switch-timer.is-urgent{color:var(--danger);}
+  .switch-pair-display{display:flex; align-items:center; justify-content:center; gap:18px; flex-wrap:wrap;}
+  .switch-pair-sep{font-family:var(--font-display); font-size:1.4rem; color:var(--ink-dim);}
+  .switch-count-input{display:block; margin:0 auto; font-family:var(--font-mono); font-size:1.7rem; font-weight:700; text-align:center; width:130px; padding:12px; border-radius:var(--radius-m); border:1px solid var(--border); background:var(--surface-2); color:var(--ink);}
+  .switch-pair-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); gap:10px; margin-bottom:16px;}
+  .switch-pair-card{display:flex; align-items:center; gap:10px; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-m); padding:10px 12px;}
+  .switch-pair-card.is-acquired{border-color:var(--success);}
+  .switch-pair-names{font-size:.82rem; font-weight:600;}
+  .switch-pair-best{font-family:var(--font-mono); font-size:.72rem; color:var(--ink-dim); margin-top:2px;}
+  .switch-pair-check{width:22px; height:22px; color:var(--success); flex:none;}
+  .switch-pair-bar{height:6px; border-radius:999px; background:var(--border); overflow:hidden; margin-top:5px;}
+  .switch-pair-bar-fill{height:100%; background:linear-gradient(90deg, var(--copper), var(--accent)); border-radius:999px;}
+  .tab-link-hint{color:var(--accent-strong); font-weight:600; cursor:pointer; white-space:nowrap;}
+  .tab-link-hint:hover{text-decoration:underline;}
 </style>
 <div class="gate-overlay" id="gateOverlay" hidden></div>
 <div class="app" id="app">
@@ -349,6 +372,7 @@
     <button class="tab" data-tab="notes">Notes</button>
     <button class="tab" data-tab="explore">Le manche</button>
     <button class="tab" data-tab="chords">Accords</button>
+    <button class="tab" data-tab="switch">Enchaînements</button>
     <button class="tab" data-tab="daily">Défi du jour</button>
     <button class="tab" data-tab="ear">À l'oreille</button>
   </nav>
@@ -395,6 +419,52 @@
     Dm: {name:'Ré mineur (Dm)',  shape:['x','x',0,2,3,1]}
   };
   var CHORD_IDS = Object.keys(CHORDS);
+
+  /* Accords supplémentaires, utilisés uniquement par l'entraînement aux
+     enchaînements (onglet « Enchaînements ») — les accords de base restent
+     seuls dans CHORDS pour ne pas changer les autres exercices. */
+  var CHORDS_EXTRA = {
+    E7: {name:'Mi 7 (E7)',       shape:[0,2,0,1,0,0]},
+    A7: {name:'La 7 (A7)',       shape:['x',0,2,0,2,0]},
+    D7: {name:'Ré 7 (D7)',       shape:['x','x',0,2,1,2]},
+    G7: {name:'Sol 7 (G7)',      shape:[3,2,0,0,0,1]},
+    C7: {name:'Do 7 (C7)',       shape:['x',3,2,3,1,0]},
+    B7: {name:'Si 7 (B7)',       shape:['x',2,1,2,0,2]},
+    /* accords barrés — les 7 majeurs et 9 mineurs qui manquent aux accords
+       ouverts, pour couvrir les 12 majeurs et 12 mineurs de la guitare */
+    F:      {name:'Fa (F)',            shape:[1,3,3,2,1,1]},
+    'F#':   {name:'Fa# (F#)',          shape:[2,4,4,3,2,2]},
+    'G#':   {name:'Sol# (G#)',         shape:[4,6,6,5,4,4]},
+    'A#':   {name:'La# (A#)',          shape:['x',1,3,3,3,1]},
+    B:      {name:'Si (B)',            shape:['x',2,4,4,4,2]},
+    'C#':   {name:'Do# (C#)',          shape:['x',4,6,6,6,4]},
+    'D#':   {name:'Ré# (D#)',          shape:['x',6,8,8,8,6]},
+    Fm:     {name:'Fa mineur (Fm)',    shape:[1,3,3,1,1,1]},
+    'F#m':  {name:'Fa# mineur (F#m)',  shape:[2,4,4,2,2,2]},
+    Gm:     {name:'Sol mineur (Gm)',   shape:[3,5,5,3,3,3]},
+    'G#m':  {name:'Sol# mineur (G#m)', shape:[4,6,6,4,4,4]},
+    Bm:     {name:'Si mineur (Bm)',    shape:['x',2,4,4,3,2]},
+    Cm:     {name:'Do mineur (Cm)',    shape:['x',3,5,5,4,3]},
+    'C#m':  {name:'Do# mineur (C#m)',  shape:['x',4,6,6,5,4]},
+    'D#m':  {name:'Ré# mineur (D#m)',  shape:['x',6,8,8,7,6]},
+    'A#m':  {name:'La# mineur (A#m)',  shape:['x',1,3,3,2,1]}
+  };
+  function chordDef(id){ return CHORDS[id] || CHORDS_EXTRA[id]; }
+
+  /* Accords proposés pour l'entraînement aux enchaînements, classés du
+     plus basique (en haut de l'écran) au plus avancé (en bas) — une vraie
+     progression dans les accords proposés. Avec les accords barrés, on
+     couvre les 12 accords majeurs et les 12 accords mineurs de la guitare. */
+  var SWITCH_TIERS = [
+    {id:'base',  label:'Accords de base',   ids:['E','Em','A','Am','D','Dm','C','G']},
+    {id:'sept',  label:'Accords de 7e',     ids:['E7','A7','D7','G7','C7','B7']},
+    {id:'barre', label:'Accords barrés',    ids:['F','F#','G#','A#','B','C#','D#','Fm','F#m','Gm','G#m','A#m','Bm','Cm','C#m','D#m']}
+  ];
+  var SWITCH_TIER_OF = {};
+  SWITCH_TIERS.forEach(function(t, ti){ t.ids.forEach(function(id){ SWITCH_TIER_OF[id] = ti; }); });
+  var SWITCH_DURATION = 65;          /* durée d'un round, en secondes (1 min 05 : 5s de battement pour se mettre en place) */
+  var SWITCH_TARGET = 50;            /* changements en ~1 minute pour considérer l'enchaînement acquis */
+  var XP_SWITCH_ACQUIRED_BONUS = 40;
 
   var ZONES = [
     {id:'z0', label:'Frettes 0 à 5', min:0, max:5},
@@ -491,7 +561,11 @@
     {id:'perfectdaily', name:'Défi parfait', desc:"Terminer un défi du jour sans aucune erreur", icon:'metronome', secret:true,
       test:function(s){ return !!s.flags.perfectDaily; }},
     {id:'earperfect', name:'Oreille absolue', desc:"Réussir un round à l’oreille de 20 questions ou plus sans aucune erreur", icon:'ear', secret:true,
-      test:function(s){ return !!s.flags.earPerfect; }}
+      test:function(s){ return !!s.flags.earPerfect; }},
+    {id:'switchfirst', name:'Premier enchaînement acquis', desc:"Réussir "+SWITCH_TARGET+" changements entre deux accords en 1 min 05", icon:'unlock',
+      test:function(s){ return acquiredSwitchPairCount(s)>=1; }},
+    {id:'switchmaster', name:'Dix enchaînements acquis', desc:"Acquérir 10 enchaînements d’accords différents", icon:'check',
+      test:function(s){ return acquiredSwitchPairCount(s)>=10; }}
   ];
 
   /* ---------- date / xp helpers ---------- */
@@ -588,6 +662,51 @@
     var qs = [];
     for(var i=0;i<EXAM_LENGTH;i++){ qs.push(pool[i % pool.length]); }
     return shuffle(qs);
+  }
+
+  /* ---------- enchaînements d'accords (vélocité de changement) ---------- */
+  function switchPairKey(id1, id2){ return [id1,id2].sort().join('|'); }
+  function getSwitchPair(state, id1, id2){
+    return state.chordSwitch.pairs[switchPairKey(id1,id2)];
+  }
+  function recordSwitchResult(state, id1, id2, count){
+    var key = switchPairKey(id1,id2);
+    var p = state.chordSwitch.pairs[key] || {ids:[id1,id2].sort(), best:0, attempts:0, acquired:false};
+    p.attempts++;
+    if(count>p.best) p.best = count;
+    var justAcquired = false;
+    if(!p.acquired && p.best>=SWITCH_TARGET){ p.acquired = true; justAcquired = true; }
+    state.chordSwitch.pairs[key] = p;
+    return {pair:p, justAcquired:justAcquired};
+  }
+  function acquiredSwitchPairCount(state){
+    var pairs = state.chordSwitch.pairs, n=0;
+    Object.keys(pairs).forEach(function(k){ if(pairs[k].acquired) n++; });
+    return n;
+  }
+  function switchPairTier(ids){
+    return Math.max(SWITCH_TIER_OF[ids[0]]||0, SWITCH_TIER_OF[ids[1]]||0);
+  }
+  function grantXp(amount){
+    var prevLevel = levelInfo(state.xp).level;
+    state.xp += amount;
+    touchStreak(state);
+    var hour = new Date().getHours();
+    if(hour<5) state.flags.nightOwl = true;
+    var newBadges = checkBadges(state);
+    newBadges.forEach(function(bid){
+      var def = BADGE_DEFS.filter(function(b){ return b.id===bid; })[0];
+      if(def) pushHistory(state, 'badge', 'Badge débloqué : '+def.name);
+    });
+    var newLevel = levelInfo(state.xp).level;
+    if(newLevel>prevLevel){
+      var t = titleForLevel(newLevel);
+      pushHistory(state, 'level', 'Niveau '+newLevel+' atteint — '+t.title);
+    }
+    scheduleSave();
+    renderTopbarStats();
+    if(newBadges.length) showBadgeToast(newBadges);
+    return newBadges;
   }
 
   /* ---------- history ---------- */
@@ -814,7 +933,8 @@ var GUITAR_SAMPLES_B64 = {
       zoneExams:{},
       flags:{nightOwl:false, perfectDaily:false, perfectExam:false, earPerfect:false},
       soundPlays:0,
-      ear:{lastLength:0, lastCorrect:0, lastDate:null}
+      ear:{lastLength:0, lastCorrect:0, lastDate:null},
+      chordSwitch:{pairs:{}}
     };
   }
   function mergeDefaults(loaded){
@@ -848,7 +968,8 @@ var GUITAR_SAMPLES_B64 = {
         lastLength: loaded.ear.lastLength||0,
         lastCorrect: loaded.ear.lastCorrect||0,
         lastDate: loaded.ear.lastDate||null
-      } : d.ear
+      } : d.ear,
+      chordSwitch: (loaded.chordSwitch && typeof loaded.chordSwitch==='object' && loaded.chordSwitch.pairs && typeof loaded.chordSwitch.pairs==='object') ? {pairs: loaded.chordSwitch.pairs} : d.chordSwitch
     };
   }
 
@@ -1187,6 +1308,7 @@ var GUITAR_SAMPLES_B64 = {
   var examUI = {active:false, zoneIdx:null, questions:[], idx:0, correct:0, mistakes:0, feedback:null, result:null};
   var earUI = {phase:'setup', length:10, category:'mixed', questions:[], idx:0, correct:0, mistakes:0, feedback:null, result:null};
   var exploreUI = {revealed:{}, showAll:false};
+  var switchUI = {phase:'setup', chordA:null, chordB:null, timeLeft:SWITCH_DURATION, count:0, timerId:null, result:null};
   var profileMenuOpen = false;
 
   function applyAnswer(domain, id, correct){
@@ -1305,9 +1427,45 @@ var GUITAR_SAMPLES_B64 = {
         '<div class="chord-mastery-grid">'+chordsHTML+'</div>'+
       '</section>'+
       '<section class="dash-section">'+
+        '<h2>Enchaînements d’accords</h2>'+
+        '<p class="section-hint">Vélocité de changement entre deux accords — '+SWITCH_TARGET+' changements réussis en 1 min 05 pour valider un enchaînement. <span data-tab-link="switch" class="tab-link-hint">Aller aux Enchaînements →</span></p>'+
+        renderSwitchMasteryList()+
+      '</section>'+
+      '<section class="dash-section">'+
         '<h2>Historique</h2>'+
         renderHistory()+
       '</section>';
+  }
+  function renderSwitchMasteryList(){
+    var pairs = state.chordSwitch.pairs;
+    var keys = Object.keys(pairs);
+    if(keys.length===0){
+      return '<p class="section-hint">Pas encore d’enchaînement tenté — rends-toi dans l’onglet <strong>Enchaînements</strong> pour commencer à chronométrer tes changements d’accords.</p>';
+    }
+    var byTier = [[],[],[]];
+    keys.forEach(function(k){ byTier[switchPairTier(pairs[k].ids)].push(k); });
+    var labels = ['Accords de base','Avec un accord de 7e','Avec un accord barré'];
+    var html='';
+    byTier.forEach(function(list, ti){
+      if(!list.length) return;
+      list.sort(function(a,b){ return pairs[b].best - pairs[a].best; });
+      html += '<p class="switch-tier-label">'+labels[ti]+'</p><div class="switch-pair-grid">'+
+        list.map(function(k){
+          var p = pairs[k];
+          var n1 = chordDef(p.ids[0]).name, n2 = chordDef(p.ids[1]).name;
+          var pct = Math.min(100, Math.round(p.best/SWITCH_TARGET*100));
+          return '<div class="switch-pair-card'+(p.acquired?' is-acquired':'')+'">'+
+            (p.acquired ? '<svg viewBox="0 0 40 40" class="switch-pair-check" aria-hidden="true">'+BADGE_ICONS.check+'</svg>' : '')+
+            '<div style="flex:1">'+
+              '<div class="switch-pair-names">'+escapeHtml(n1)+' ↔ '+escapeHtml(n2)+'</div>'+
+              '<div class="switch-pair-best">'+(p.acquired?'Acquis — record : '+p.best:'Record : '+p.best+' / '+SWITCH_TARGET)+'</div>'+
+              (p.acquired?'':'<div class="switch-pair-bar"><div class="switch-pair-bar-fill" style="width:'+pct+'%"></div></div>')+
+            '</div>'+
+          '</div>';
+        }).join('')+
+      '</div>';
+    });
+    return html;
   }
   function renderZoneStatus(){
     var n = unlockedZoneCount(state);
@@ -1330,7 +1488,7 @@ var GUITAR_SAMPLES_B64 = {
       return '<p class="section-hint">Ton historique apparaîtra ici au fil de tes progrès.</p>';
     }
     return '<ul class="history-list">'+items.map(function(h){
-      var icon = h.type==='badge' ? 'star' : h.type==='zone' ? 'unlock' : h.type==='daily' ? 'check' : h.type==='ear' ? 'ear' : 'levelup';
+      var icon = h.type==='badge' ? 'star' : h.type==='zone' ? 'unlock' : h.type==='daily' ? 'check' : h.type==='ear' ? 'ear' : h.type==='switch' ? 'metronome' : 'levelup';
       return '<li class="history-item"><svg viewBox="0 0 40 40" class="history-icon" aria-hidden="true">'+BADGE_ICONS[icon]+'</svg>'+
         '<span class="history-label">'+escapeHtml(h.label)+'</span>'+
         '<span class="history-date">'+formatDateFr(h.date)+'</span></li>';
@@ -1639,6 +1797,146 @@ var GUITAR_SAMPLES_B64 = {
     var correct = target.every(function(v,i){ return v===chordsUI.builder[i]; });
     applyAnswer('chords', q.id, correct);
     chordsUI.feedback = {correct:correct};
+    renderMain();
+  }
+
+  /* ---------- render: enchaînements d'accords (vélocité) ---------- */
+  function renderSwitchView(){
+    if(switchUI.phase==='playing') return renderSwitchPlaying();
+    if(switchUI.phase==='entry') return renderSwitchEntry();
+    if(switchUI.phase==='done') return renderSwitchDone();
+    return renderSwitchSetup();
+  }
+  function renderSwitchSetup(){
+    var tiersHTML = SWITCH_TIERS.map(function(t){
+      var chips = t.ids.map(function(id){
+        var cls='switch-chip', num='';
+        if(switchUI.chordA===id){ cls+=' is-a'; num='<span class="chip-pick-num">1</span>'; }
+        else if(switchUI.chordB===id){ cls+=' is-b'; num='<span class="chip-pick-num">2</span>'; }
+        return '<button class="'+cls+'" data-switch-pick="'+id+'">'+num+chordDef(id).name+'</button>';
+      }).join('');
+      return '<div class="switch-tier"><p class="switch-tier-label">'+escapeHtml(t.label)+'</p><div class="switch-chip-row">'+chips+'</div></div>';
+    }).join('');
+    var ready = switchUI.chordA && switchUI.chordB && switchUI.chordA!==switchUI.chordB;
+    var infoHTML;
+    if(ready){
+      var pairInfo = getSwitchPair(state, switchUI.chordA, switchUI.chordB);
+      if(pairInfo && pairInfo.acquired) infoHTML = '<p class="section-hint">Déjà acquis — record actuel : <strong>'+pairInfo.best+'</strong> changements. Retente pour battre ton record !</p>';
+      else if(pairInfo) infoHTML = '<p class="section-hint">Meilleur score jusqu’ici : <strong>'+pairInfo.best+'</strong> / '+SWITCH_TARGET+' changements.</p>';
+      else infoHTML = '<p class="section-hint">Pas encore tenté sur cette paire — à toi de jouer !</p>';
+    } else {
+      infoHTML = '';
+    }
+    return '<section class="trainer">'+
+      '<p class="question-prompt">Choisis les deux accords à enchaîner</p>'+
+      '<p class="section-hint">Objectif&nbsp;: fais le plus de changements possible entre ces deux accords. Le chrono dure <strong>1&nbsp;min&nbsp;05</strong> — les 5 premières secondes te laissent le temps de cliquer sur « Démarrer » puis de te mettre en place sur ta guitare. Clique le n°1 puis le n°2 pour choisir tes accords. À partir de '+SWITCH_TARGET+' changements, l’enchaînement est considéré comme acquis.</p>'+
+      tiersHTML+
+      infoHTML+
+      '<button class="btn btn-primary btn-large" id="btnSwitchStart" '+(ready?'':'disabled')+'>Démarrer (1 min 05)</button>'+
+      '</section>';
+  }
+  function renderSwitchPlaying(){
+    var d1 = chordDef(switchUI.chordA), d2 = chordDef(switchUI.chordB);
+    return '<section class="trainer switch-stage">'+
+      '<div class="switch-timer'+(switchUI.timeLeft<=10?' is-urgent':'')+'">'+switchUI.timeLeft+'s</div>'+
+      '<p class="question-prompt">Enchaîne <strong>'+escapeHtml(d1.name)+'</strong> et <strong>'+escapeHtml(d2.name)+'</strong></p>'+
+      '<div class="switch-pair-display">'+
+        '<div class="chordbox-wrap">'+buildChordBoxSVG(d1.shape,{interactive:false})+'</div>'+
+        '<span class="switch-pair-sep">↔</span>'+
+        '<div class="chordbox-wrap">'+buildChordBoxSVG(d2.shape,{interactive:false})+'</div>'+
+      '</div>'+
+      '<p class="section-hint">Enchaîne ces deux accords en boucle sur ta guitare, le plus vite et le plus proprement possible, jusqu’à la fin du chrono. Compte tes changements dans ta tête&nbsp;: on te demandera le total à la fin.</p>'+
+      '<button class="btn btn-ghost" id="btnSwitchQuit">Abandonner</button>'+
+      '</section>';
+  }
+  function renderSwitchEntry(){
+    var n1 = chordDef(switchUI.chordA).name, n2 = chordDef(switchUI.chordB).name;
+    return '<section class="trainer">'+
+      '<p class="question-prompt">Temps écoulé !</p>'+
+      '<p class="section-hint">Combien de changements entre <strong>'+escapeHtml(n1)+'</strong> et <strong>'+escapeHtml(n2)+'</strong> as-tu réussi à faire&nbsp;?</p>'+
+      '<input type="number" inputmode="numeric" min="0" step="1" class="switch-count-input" id="switchCountInput" placeholder="0">'+
+      '<button class="btn btn-primary btn-large" id="btnSwitchSubmitCount">Valider</button>'+
+      '<button class="btn btn-ghost" id="btnSwitchCancelEntry">Annuler ce round</button>'+
+      '</section>';
+  }
+  function renderSwitchDone(){
+    var r = switchUI.result;
+    var n1 = chordDef(switchUI.chordA).name, n2 = chordDef(switchUI.chordB).name;
+    var passed = r.count>=SWITCH_TARGET;
+    return '<section class="trainer exam-result'+(passed?' is-pass':'')+'">'+
+      '<h2>'+escapeHtml(n1)+' ↔ '+escapeHtml(n2)+'</h2>'+
+      '<p class="exam-score">'+r.count+' changement'+(r.count>1?'s':'')+'</p>'+
+      (r.justAcquired ? '<p class="section-hint">Enchaînement acquis — bravo, c’est validé ! ✅</p>' :
+        passed ? '<p class="section-hint">Toujours acquis — record actuel : '+r.best+'.</p>' :
+        '<p class="section-hint">Objectif&nbsp;: '+SWITCH_TARGET+' changements. Meilleur score jusqu’ici&nbsp;: '+r.best+'.</p>')+
+      '<span class="xp-gain">+'+r.xpGained+' XP</span>'+
+      '<button class="btn btn-primary" id="btnSwitchRetry">Retenter</button>'+
+      '<button class="btn btn-ghost" id="btnSwitchChangePair">Changer d’accords</button>'+
+      '</section>';
+  }
+  function handleSwitchPick(id){
+    if(switchUI.chordA===id) switchUI.chordA=null;
+    else if(switchUI.chordB===id) switchUI.chordB=null;
+    else if(!switchUI.chordA) switchUI.chordA=id;
+    else if(!switchUI.chordB) switchUI.chordB=id;
+    else { switchUI.chordA=id; switchUI.chordB=null; }
+    renderMain();
+  }
+  function handleSwitchStart(){
+    if(!switchUI.chordA || !switchUI.chordB || switchUI.chordA===switchUI.chordB) return;
+    if(switchUI.timerId){ clearInterval(switchUI.timerId); switchUI.timerId=null; }
+    switchUI.phase='playing';
+    switchUI.timeLeft=SWITCH_DURATION;
+    switchUI.count=0;
+    switchUI.result=null;
+    renderMain();
+    switchUI.timerId = setInterval(function(){
+      if(!switchUI.chordA || !switchUI.chordB){
+        clearInterval(switchUI.timerId); switchUI.timerId=null; switchUI.phase='setup'; renderMain();
+        return;
+      }
+      switchUI.timeLeft--;
+      if(switchUI.timeLeft<=0){
+        clearInterval(switchUI.timerId);
+        switchUI.timerId=null;
+        switchUI.phase='entry';
+        renderMain();
+        var inputEl = document.getElementById('switchCountInput');
+        if(inputEl) inputEl.focus();
+      } else {
+        renderMain();
+      }
+    }, 1000);
+  }
+  function handleSwitchSubmitCount(){
+    var input = document.getElementById('switchCountInput');
+    var val = input ? parseInt(input.value, 10) : NaN;
+    if(isNaN(val) || val<0) val = 0;
+    switchUI.count = val;
+    finishSwitch();
+  }
+  function finishSwitch(){
+    var res = recordSwitchResult(state, switchUI.chordA, switchUI.chordB, switchUI.count);
+    var xpGained = Math.min(60, Math.round(switchUI.count/2)) + (res.justAcquired?XP_SWITCH_ACQUIRED_BONUS:0);
+    var n1 = chordDef(switchUI.chordA).name, n2 = chordDef(switchUI.chordB).name;
+    pushHistory(state, 'switch', 'Enchaînement '+n1+' ↔ '+n2+' — '+switchUI.count+' changements');
+    grantXp(xpGained);
+    switchUI.phase='done';
+    switchUI.result = {count:switchUI.count, xpGained:xpGained, justAcquired:res.justAcquired, best:res.pair.best};
+    renderMain();
+    if(res.justAcquired) showToast('Enchaînement maîtrisé !', n1+' → '+n2, 'check');
+  }
+  function handleSwitchQuit(){
+    if(switchUI.timerId){ clearInterval(switchUI.timerId); switchUI.timerId=null; }
+    switchUI.phase='setup';
+    renderMain();
+  }
+  function handleSwitchCancelEntry(){
+    switchUI.phase='setup';
+    renderMain();
+  }
+  function handleSwitchChangePair(){
+    switchUI.chordA=null; switchUI.chordB=null; switchUI.phase='setup'; switchUI.result=null;
     renderMain();
   }
 
@@ -2020,6 +2318,7 @@ var GUITAR_SAMPLES_B64 = {
     else if(activeTab==='notes') main.innerHTML = renderNotesView();
     else if(activeTab==='explore') main.innerHTML = renderExploreView();
     else if(activeTab==='chords') main.innerHTML = renderChordsView();
+    else if(activeTab==='switch') main.innerHTML = renderSwitchView();
     else if(activeTab==='daily') main.innerHTML = renderDailyView();
     else if(activeTab==='ear') main.innerHTML = renderEarView();
   }
@@ -2156,7 +2455,8 @@ var GUITAR_SAMPLES_B64 = {
     }
     if((t = e.target.closest('[data-play-chord]'))){
       var pcid = t.getAttribute('data-play-chord');
-      if(CHORDS[pcid]) playChordShape(CHORDS[pcid].shape);
+      var pdef = chordDef(pcid);
+      if(pdef) playChordShape(pdef.shape);
       return;
     }
     if((t = e.target.closest('#btnHearBuilderChord'))){ playChordShape(chordsUI.builder); return; }
@@ -2200,6 +2500,19 @@ var GUITAR_SAMPLES_B64 = {
     if((t = e.target.closest('#btnEarNext'))){ handleEarNext(); return; }
     if((t = e.target.closest('#btnEarQuit'))){ handleEarQuit(); return; }
     if((t = e.target.closest('#btnEarRestart'))){ handleEarQuit(); return; }
+    if((t = e.target.closest('[data-switch-pick]'))){ handleSwitchPick(t.getAttribute('data-switch-pick')); return; }
+    if((t = e.target.closest('#btnSwitchStart'))){ handleSwitchStart(); return; }
+    if((t = e.target.closest('#btnSwitchQuit'))){ handleSwitchQuit(); return; }
+    if((t = e.target.closest('#btnSwitchSubmitCount'))){ handleSwitchSubmitCount(); return; }
+    if((t = e.target.closest('#btnSwitchCancelEntry'))){ handleSwitchCancelEntry(); return; }
+    if((t = e.target.closest('#btnSwitchRetry'))){ handleSwitchStart(); return; }
+    if((t = e.target.closest('#btnSwitchChangePair'))){ handleSwitchChangePair(); return; }
+    if((t = e.target.closest('[data-tab-link]'))){
+      activeTab = t.getAttribute('data-tab-link');
+      updateTabsUI();
+      renderMain();
+      return;
+    }
   });
 
   document.getElementById('main').addEventListener('keydown', function(e){
@@ -2209,6 +2522,12 @@ var GUITAR_SAMPLES_B64 = {
         e.preventDefault();
         el.dispatchEvent(new MouseEvent('click', {bubbles:true}));
       }
+    }
+  });
+  document.addEventListener('keydown', function(e){
+    if(e.key==='Enter' && e.target && e.target.id==='switchCountInput'){
+      e.preventDefault();
+      handleSwitchSubmitCount();
     }
   });
 
@@ -2224,5 +2543,5 @@ var GUITAR_SAMPLES_B64 = {
   })();
 })();
 </script>
-</body>
-</html>
+
+</body></html>
